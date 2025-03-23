@@ -2,13 +2,5 @@
 # 이 .gitignore 파일은 Microsoft(R) Visual Studio에서 자동으로 만들어졌습니다.
 ################################################################################
 
-/.vs/Huns/FileContentIndex/6fc89566-14bb-442f-95da-7e2c56750d37.vsidx
-/.vs/Huns/v17/.suo
-/.vs/Huns/v17/Browse.VC.db
-/.vs/Huns/v17/Browse.VC.db-shm
-/.vs/Huns/v17/Browse.VC.db-wal
-/.vs/Huns/v17/Browse.VC.opendb
-/.vs/Huns/v17/DocumentLayout.json
+/.vs
 /Huns.vcxproj.user
-/.vs/Huns/FileContentIndex/9ff9d90c-0d0c-47c8-9afa-0c4be4809c49.vsidx
-/.vs/Huns/FileContentIndex/b3621d0e-53b6-4cd4-ad13-fe0251b2d14c.vsidx
