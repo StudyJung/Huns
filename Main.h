@@ -1,4 +1,8 @@
+#pragma once
+
+#include <Windows.h>
 #include <iostream>
+
 #include <algorithm>
 #include <random>
 #include <vector>
@@ -7,24 +11,27 @@
 
 using namespace std;
 
+const int MAX_NODE_COUNT = 1000000; // 10000 이면 MAX_NODE_INDEX = 4
+const int MAX_NODE_INDEX = 6;
+
 class CSkipNode
 {
 public:
 
-    double      m_dPoint;
+    double      m_dScore;
     __int64     m_nValue;
 
     vector<list<list<CSkipNode*>::iterator>::iterator>  m_vecNext;
 
     CSkipNode()
     {
-        m_dPoint = 0;
+        m_dScore = 0;
         m_nValue = 0;
     }
 
-    CSkipNode(double dPoint = 0, __int64 nValue = 0)
+    CSkipNode(double dScore = 0, __int64 nValue = 0)
     {
-        m_dPoint = dPoint;
+        m_dScore = dScore;
         m_nValue = nValue;
     }
 
@@ -39,122 +46,149 @@ public:
 
     list<CSkipNode*> m_lstNode;
 
-    list<list<CSkipNode*>::iterator> m_lstIter[7];
+    list<list<CSkipNode*>::iterator> m_lstIter[MAX_NODE_INDEX];
 
     CSkipList()
     {
-        for (size_t uCount = 0; uCount < 100000; ++uCount)
-        {
-            CSkipNode* pNode = new CSkipNode(uCount, uCount);
-
-            m_lstNode.push_front(pNode);
-
-            auto iterNode = m_lstNode.begin();
-
-            m_lstIter[0].push_front(iterNode);
-
-            (*iterNode)->m_vecNext.push_back(m_lstIter[0].begin());
-
-            if (uCount % 10 != 0)
-            {
-                continue;
-            }
-
-            m_lstIter[1].push_front(iterNode);
-
-            (*iterNode)->m_vecNext.push_back(m_lstIter[1].begin());
-
-            if (uCount % 100 != 0)
-            {
-                continue;
-            }
-
-            m_lstIter[2].push_front(iterNode);
-
-            (*iterNode)->m_vecNext.push_back(m_lstIter[2].begin());
-
-            if (uCount % 1000 != 0)
-            {
-                continue;
-            }
-
-            m_lstIter[3].push_front(iterNode);
-
-            (*iterNode)->m_vecNext.push_back(m_lstIter[3].begin());
-
-            if (uCount % 10000 != 0)
-            {
-                continue;
-            }
-
-            m_lstIter[4].push_front(iterNode);
-
-            (*iterNode)->m_vecNext.push_back(m_lstIter[4].begin());
-
-            if (uCount % 100000 != 0)
-            {
-                continue;
-            }
-
-            m_lstIter[5].push_front(iterNode);
-
-            (*iterNode)->m_vecNext.push_back(m_lstIter[5].begin());
-
-            if (uCount % 1000000 != 0)
-            {
-                continue;
-            }
-
-            m_lstIter[6].push_front(iterNode);
-
-            (*iterNode)->m_vecNext.push_back(m_lstIter[6].begin());
-        }
     }
 
     ~CSkipList()
     {
     }
 
-    int Search(list<list<CSkipNode*>::iterator>::iterator iterFind, int nPoint, int nIndex)
+    bool Choice1()
     {
-        int nRanking = 0;
-
-        for (; iterFind != m_lstIter[nIndex - 1].begin(); --iterFind)
+        if ((rand() + 1) % 2 == 0)
         {
-            auto iterNode = (*(*iterFind));
+            return false;
+        }
 
-            if (iterNode->m_dPoint == nPoint)
-            {
-                return nRanking;
-            }
+        return true;
+    }
 
-            if (iterNode->m_dPoint < nPoint)
+    bool Choice2(int nListCount, int& rCheckCount)
+    {
+        rCheckCount = rCheckCount * 10;
+
+        if (nListCount % rCheckCount != 0)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    bool Init(list<CSkipNode>& rSortList)   // 외부에서 내림차순 정렬 된 데이터로 들어와야 한다..
+    {   
+        if (MAX_NODE_COUNT < rSortList.size())
+        {
+            return false;
+        }
+
+        srand((unsigned int)time(0));
+
+        int nListCount = 0;
+        
+        for (auto iterList : rSortList)
+        {        
+            CSkipNode* pNode = new CSkipNode(iterList.m_dScore, iterList.m_nValue);
+
+            m_lstNode.push_back(pNode);
+
+            auto iterNode = --m_lstNode.end();
+
+            m_lstIter[0].push_back(iterNode);
+
+            (*iterNode)->m_vecNext.push_back(--m_lstIter[0].end());
+
+            int nCheckCount = 1;
+
+            for (int nIndex = 1; nIndex < MAX_NODE_INDEX; ++nIndex)
             {
-                if (1 < nIndex)
+                if (MAX_NODE_INDEX > 10)
                 {
-                    return Search(iterNode->m_vecNext[nIndex - 2], nPoint, nIndex - 1);
+                    if (nListCount != 0 && Choice1() == false)
+                    {
+                        break;
+                    }
                 }
                 else
                 {
-                    ++nRanking;
+                    if (nListCount != 0 && Choice2(nListCount, nCheckCount) == false)
+                    {
+                        break;
+                    }
                 }
+
+                m_lstIter[nIndex].push_back(iterNode);
+
+                (*iterNode)->m_vecNext.push_back(--m_lstIter[nIndex].end());
             }
+
+            ++nListCount;
         }
 
-        return 0;
+        return true;
     }
 
-    int Search(int nPoint, int nIndex = 4)
+    int Search(double dScore, int& rCount, int nIndex = (MAX_NODE_INDEX - 1), list<list<CSkipNode*>::iterator>::iterator* pIter = nullptr)
     {
         int nRanking = 0;
 
-        list<list<CSkipNode*>::iterator>::iterator  iterFind;
+        list<list<CSkipNode*>::iterator>::iterator iterPoint;
 
-        for (list<CSkipNode*>::iterator iterList : m_lstIter[nIndex])
+        if (pIter == nullptr)
         {
-            if ((*iterList)->m_dPoint < nPoint)
+            iterPoint = m_lstIter[nIndex].begin();
+
+            rCount = 0;
+        }
+        else
+        {
+            iterPoint = *pIter;
+        }
+
+        for (; iterPoint != m_lstIter[nIndex].end(); ++iterPoint)
+        {
+            //printf("Search Index,%d,%d,\n", nIndex, rCount);
+
+            ++rCount;
+            
+            CSkipNode* pNode = (*(*iterPoint));
+
+            if (pNode == nullptr)
             {
-                int nSearch = Search((*iterList)->m_vecNext[nIndex - 1], nPoint, nIndex);
+                return 0;
+            }
+
+            if (pNode->m_dScore == dScore)
+            {
+                printf("Find Score,%f,Index,%d,%d,\n", dScore, nIndex, rCount);
+
+                return nRanking;
+            }
+    
+            if (nIndex == 0)
+            {
+                continue;
+            }
+
+            ++iterPoint;
+
+            auto iterNext = iterPoint;
+
+            --iterPoint;
+
+            double dNextScore = 0;
+
+            if (iterNext != m_lstIter[nIndex].end())
+            {
+                dNextScore = (*(*iterNext))->m_dScore;
+            }
+
+            if (pNode->m_dScore >= dScore && dScore >= dNextScore)
+            {
+                int nSearch = Search(dScore, rCount, nIndex - 1, &pNode->m_vecNext[nIndex - 1]);
 
                 if (nSearch == 0)
                 {
@@ -163,8 +197,6 @@ public:
 
                 return nRanking + nSearch;
             }
-
-            nRanking += 10000;
         }
 
         return 0;
