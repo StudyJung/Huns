@@ -1,10 +1,14 @@
-
+﻿
 #include "Main.h"
 
-// �ѱ� �׽�Ʈ
+// 한글 테스트
 
-int main()
+
+int main() 
 {
+    CSkipList kList;
+
+    kList.Search(90001);
 
     return 0;
 }
