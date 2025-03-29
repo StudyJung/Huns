@@ -3,11 +3,15 @@
 
 int main() 
 {   
+    srand(GetTickCount());
+
+    int nRand = ( rand() * 10000 + rand()) % MAX_NODE_COUNT;
+
     CSkipList kList;
 
     list<CSkipNode> kNodeList;
 
-    for (int nCount = 1000000; nCount > 0; --nCount)
+    for (int nCount = nRand; nCount > 0; --nCount)
     {
         kNodeList.push_back(CSkipNode(nCount, nCount));
     }
@@ -16,21 +20,44 @@ int main()
 
     int nCount = 0;
 
+    kList.Search(0, nCount);
     kList.Search(1, nCount);
-    kList.Search(2, nCount);
-    kList.Search(3, nCount);
+    kList.Search(nRand, nCount);
+    kList.Search(nRand + 1, nCount);
+
+    printf("Rand,%d\n", nRand);
 
     while (true)
-    {
-        nCount = 0;
-
+    {       
         unsigned __int64 uTick = GetTickCount64();
 
-        kList.Search(rand() % 1000000, nCount);
+        for (int nIndex = 0; nIndex < 10; ++nIndex)
+        {
+            nCount = 0;
 
-        printf("Tick,%lld\n", GetTickCount64() - uTick);
+            kList.Search((rand() * 10000 + rand()) % nRand, nCount);
 
-        Sleep(500);
+            nCount = 0;
+
+            kList.Search((rand() * 1000 + rand()) % nRand, nCount);
+
+            nCount = 0;
+
+            kList.Search((rand() * 100 + rand()) % nRand, nCount);
+
+            nCount = 0;
+
+            kList.Search(rand() % 1000, nCount);
+
+            kList.Search(rand() % 10, nCount);
+        }
+
+        if (30 < (GetTickCount64() - uTick))
+        {
+            printf("Tick,%lld\n", GetTickCount64() - uTick);
+        }
+
+        Sleep(10);
     }
 
     return 0;

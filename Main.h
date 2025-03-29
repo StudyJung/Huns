@@ -50,23 +50,14 @@ public:
 
     CSkipList()
     {
+        srand(GetTickCount());
     }
 
     ~CSkipList()
     {
     }
 
-    bool Choice1()
-    {
-        if ((rand() + 1) % 2 == 0)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    bool Choice2(int nListCount, int& rCheckCount)
+    bool Choice1(int nListCount, int& rCheckCount)
     {
         rCheckCount = rCheckCount * 10;
 
@@ -78,15 +69,25 @@ public:
         return true;
     }
 
-    bool Init(list<CSkipNode>& rSortList)   // 외부에서 내림차순 정렬 된 데이터로 들어와야 한다..
-    {   
-        if (MAX_NODE_COUNT < rSortList.size())
+    bool Choice2()
+    {
+        if ((rand() + 1) % 2 == 0)
         {
             return false;
         }
 
-        srand((unsigned int)time(0));
+        return true;
+    }   
 
+    bool Init(list<CSkipNode>& rSortList)   // 외부에서 내림차순 정렬 된 데이터로 들어와야 한다..
+    {   
+        if (MAX_NODE_COUNT < rSortList.size())
+        {
+            printf("Error,MAX_NODE_COUNT < rSortList.size(),\n");
+
+            return false;
+        }
+        
         int nListCount = 0;
         
         for (auto iterList : rSortList)
@@ -105,16 +106,16 @@ public:
 
             for (int nIndex = 1; nIndex < MAX_NODE_INDEX; ++nIndex)
             {
-                if (MAX_NODE_INDEX > 10)
+                if (MAX_NODE_INDEX < 10)
                 {
-                    if (nListCount != 0 && Choice1() == false)
+                    if (nListCount != 0 && Choice1(nListCount, nCheckCount) == false)
                     {
                         break;
-                    }
+                    }                  
                 }
                 else
                 {
-                    if (nListCount != 0 && Choice2(nListCount, nCheckCount) == false)
+                    if (nListCount != 0 && Choice2() == false)
                     {
                         break;
                     }
@@ -133,13 +134,21 @@ public:
 
     int Search(double dScore, int& rCount, int nIndex = (MAX_NODE_INDEX - 1), list<list<CSkipNode*>::iterator>::iterator* pIter = nullptr)
     {
-        int nRanking = 0;
+        if (dScore <= 0)
+        {
+            return 0;
+        }
 
         list<list<CSkipNode*>::iterator>::iterator iterPoint;
 
         if (pIter == nullptr)
         {
             iterPoint = m_lstIter[nIndex].begin();
+
+            if ((*(*iterPoint))->m_dScore < dScore)
+            {
+                return 1;
+            }
 
             rCount = 0;
         }
@@ -158,14 +167,22 @@ public:
 
             if (pNode == nullptr)
             {
+                printf("Error,pNode == nullptr,\n");
+
                 return 0;
             }
 
             if (pNode->m_dScore == dScore)
             {
-                printf("Find Score,%f,Index,%d,%d,\n", dScore, nIndex, rCount);
+                //printf("Find Score,%f,Index,%d,%d,\n", dScore, nIndex, rCount);
+                //printf("Find Score,%f,Index,%d,%d,\n", dScore, nIndex, rCount);
 
-                return nRanking;
+                if (55 < rCount)
+                {
+                    printf("War,55 < rCount, Score,%f,Index,%d,%d,\n", dScore, nIndex, rCount);
+                }
+
+                return 1;
             }
     
             if (nIndex == 0)
@@ -192,12 +209,16 @@ public:
 
                 if (nSearch == 0)
                 {
+                    printf("Error,nSearch == 0,\n");
+
                     return 0;
                 }
 
-                return nRanking + nSearch;
+                return nSearch;
             }
         }
+
+        printf("Error,return 0,\n");
 
         return 0;
     }
