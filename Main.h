@@ -11,8 +11,9 @@
 
 using namespace std;
 
-const int MAX_NODE_COUNT = 1000000;
-const int MAX_NODE_INDEX = 16;
+const int MAX_NODE_COUNT    = 1000000;
+const int MAX_NODE_INDEX    = 17;
+const int WAR_SEARCH_COUNT  = MAX_NODE_INDEX * 10;
 
 const double MAX_NODE_SCORE = 1000000000000;
 const double MIN_NODE_SCORE = 0;
@@ -60,19 +61,7 @@ public:
     {
     }
 
-    bool ChoiceInit(int nListCount, int& rCheckCount)
-    {
-        rCheckCount = rCheckCount * 10;
-
-        if (nListCount % rCheckCount != 0)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    bool ChoiceInsert()
+    bool RandomNext()
     {
         if ((rand() + 1) % 2 == 0)
         {
@@ -146,7 +135,7 @@ public:
 
             for (int nIndex = 1; nIndex < MAX_NODE_INDEX; ++nIndex)
             {
-                if (0 < pNode->m_nValue && ChoiceInit(nListCount, nCheckCount) == false)
+                if (0 < pNode->m_nValue && RandomNext() == false)
                 {
                     break;
                 }
@@ -166,6 +155,8 @@ public:
     {
         if (pNode == nullptr)
         {
+            printf("Error,pNode == nullptr,\n");
+
             return false;
         }
 
@@ -195,7 +186,7 @@ public:
     {
         if (pNode == nullptr)
         {
-            printf("pNode == nullptr,\n");
+            printf("Error,pNode == nullptr,\n");
 
             return false;
         }
@@ -205,21 +196,21 @@ public:
 
         if (dScore <= MIN_NODE_SCORE || MAX_NODE_SCORE <= dScore)
         {
-            printf("MIN_NODE_SCORE || MAX_NODE_SCORE,\n");
+            printf("Error,MIN_NODE_SCORE || MAX_NODE_SCORE,\n");
             
             return false;
         }
 
         if (nValue <= 0)
         {
-            printf("nValue <= 0,\n");
+            printf("Error,nValue <= 0,\n");
 
             return false;
         }
 
         if (nIndex < 0)
         {
-            printf("nIndex < 0,\n");
+            printf("Error,nIndex < 0,\n");
 
             return false;
         }
@@ -286,9 +277,9 @@ public:
                 {
                     //printf("Find Score,%f,Value,%lld,Index,%d,Count,%d,\n", dScore, nValue, nIndex, rSerchCount);
 
-                    if (100 < rSerchCount)
+                    if (nIndex == 0 && WAR_SEARCH_COUNT < rSerchCount)
                     {
-                        printf("War,100 < rSerchCount,Score,%f,Value,%lld,Index,%d,Count,%d,\n", dScore, nValue, nIndex, rSerchCount);
+                        printf("War,WAR_SEARCH_COUNT < rSerchCount,Score,%f,Value,%lld,Index,%d,Count,%d,\n", dScore, nValue, nIndex, rSerchCount);
                     }
 
                     return true;
@@ -304,7 +295,7 @@ public:
 
                     for (auto iterInsertNext : *pIterPointList)
                     {
-                        if (ChoiceInsert() == false)
+                        if (RandomNext() == false)
                         {
                             break;
                         }
@@ -319,6 +310,11 @@ public:
                         delete pIterPointList;
 
                         pIterPointList = nullptr;
+                    }
+
+                    if (nIndex == 0 && WAR_SEARCH_COUNT < rSerchCount)
+                    {
+                        printf("War,WAR_SEARCH_COUNT < rSerchCount,Score,%f,Value,%lld,Index,%d,Count,%d,\n", dScore, nValue, nIndex, rSerchCount);
                     }
 
                     return true;
@@ -344,20 +340,14 @@ public:
 
         if (rNode.m_nValue <= 0)
         {
-            printf("m_nValue <= 0,\n");
+            printf("Error,m_nValue <= 0,\n");
 
             return false;
         }
 
-        unsigned __int64 uTick = GetTickCount64();
-
         CSkipNode* pNode = nullptr;
 
         auto iterNode = m_mapNode.find(rNode.m_nValue);
-
-        uTick = GetTickCount64() - uTick;
-
-        uTick = GetTickCount64();
 
         if (iterNode != m_mapNode.end())
         {
@@ -374,10 +364,6 @@ public:
             m_mapNode.insert(make_pair(pNode->m_nValue, pNode));
         }
 
-        uTick = GetTickCount64() - uTick;
-
-        uTick = GetTickCount64();
-
         if (Select(pNode, rSerchCount, true) == false)
         {
             m_mapNode.erase(pNode->m_nValue);
@@ -386,12 +372,10 @@ public:
 
             pNode = nullptr;
 
-            printf("Select == false,%f,%lld,\n", pNode->m_dScore, pNode->m_nValue);
+            printf("Error,Select == false,%f,%lld,\n", pNode->m_dScore, pNode->m_nValue);
 
             return false;
         }
-
-        uTick = GetTickCount64() - uTick;
 
         return true;
     }
@@ -462,14 +446,17 @@ int Test()
 
         int nCount = 0;
 
-        for (int nIndex = 0; nIndex < 10; ++nIndex)
+        for (int nIndex = 0; nIndex < 20000; ++nIndex)
         {                
             {
                 nCount = 0;
-                kNode.m_dScore = rand() % MAX_NODE_COUNT + 1;
+                kNode.m_dScore = MAX_NODE_COUNT - (rand() % 1000);
                 kNode.m_nValue = (__int64)kNode.m_dScore;
 
-                kList.Update(kNode, nCount);
+                if (kList.Update(kNode, nCount) == false)
+                {
+                    printf("Error,Update == false,\n");
+                }
 
                 if (nMaxCount < nCount)
                 {
@@ -487,10 +474,13 @@ int Test()
 
             {
                 nCount = 0;
-                kNode.m_dScore = rand() % 100000 + 1;
+                kNode.m_dScore = MAX_NODE_COUNT - (rand() % 100000);
                 kNode.m_nValue = (__int64)kNode.m_dScore;
 
-                kList.Update(kNode, nCount);
+                if (kList.Update(kNode, nCount) == false)
+                {
+                    printf("Error,Update == false,\n");
+                }
 
                 if (nMaxCount < nCount)
                 {
@@ -508,31 +498,13 @@ int Test()
 
             {
                 nCount = 0;
-                kNode.m_dScore = rand() % 10000 + 1;
+                kNode.m_dScore = rand() % 1000000 + 1;
                 kNode.m_nValue = (__int64)kNode.m_dScore;
 
-                kList.Update(kNode, nCount);
-
-                if (nMaxCount < nCount)
+                if (kList.Update(kNode, nCount) == false)
                 {
-                    nMaxCount = nCount;
+                    printf("Error,Update == false,\n");
                 }
-
-                if (nMinCount > nCount)
-                {
-                    nMinCount = nCount;
-                }
-
-                ++nIndexCount;
-                nSerchCount += nCount;
-            }
-
-            {
-                nCount = 0;
-                kNode.m_dScore = rand() % 1000 + 1;
-                kNode.m_nValue = (__int64)kNode.m_dScore;
-
-                kList.Update(kNode, nCount);
 
                 if (nMaxCount < nCount)
                 {
@@ -553,7 +525,34 @@ int Test()
                 kNode.m_dScore = rand() % 100 + 1;
                 kNode.m_nValue = (__int64)kNode.m_dScore;
 
-                kList.Update(kNode, nCount);
+                if (kList.Update(kNode, nCount) == false)
+                {
+                    printf("Error,Update == false,\n");
+                }
+
+                if (nMaxCount < nCount)
+                {
+                    nMaxCount = nCount;
+                }
+
+                if (nMinCount > nCount)
+                {
+                    nMinCount = nCount;
+                }
+
+                ++nIndexCount;
+                nSerchCount += nCount;
+            }
+
+            {
+                nCount = 0;
+                kNode.m_dScore = rand() % MAX_NODE_COUNT + 1;
+                kNode.m_nValue = rand() % MAX_NODE_COUNT + 1;
+
+                if (kList.Update(kNode, nCount) == false)
+                {
+                    printf("Error,Update == false,\n");
+                }
 
                 if (nMaxCount < nCount)
                 {
@@ -572,7 +571,7 @@ int Test()
 
         printf("Check,Count,%d,Update,%d,Avg,%d,Min,%d,Max,%d,Tick,%lld\n", nIndexCount, nSerchCount, nSerchCount / nIndexCount, nMinCount, nMaxCount, GetTickCount64() - uTick);
 
-        Sleep(1000);
+        Sleep(10);
     }
 
     return 0;
