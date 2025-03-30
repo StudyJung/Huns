@@ -569,12 +569,15 @@ int Test()
             }
         }
 
-        printf("Check,Count,%d,Update,%d,Avg,%d,Min,%d,Max,%d,Tick,%lld\n", nIndexCount, nSerchCount, nSerchCount / nIndexCount, nMinCount, nMaxCount, GetTickCount64() - uTick);
+        uTick = GetTickCount64() - uTick;
+
+        if (600 < uTick || 150 < nMaxCount)
+        {
+            printf("Check,Count,%d,Update,%d,Avg,%d,Min,%d,Max,%d,Tick,%lld\n", nIndexCount, nSerchCount, nSerchCount / nIndexCount, nMinCount, nMaxCount, uTick);
+        }
 
         Sleep(10);
     }
 
     return 0;
 }
-
-
