@@ -47,9 +47,9 @@ class CSkipList
 {
 public:
 
-    list<CSkipNode*> m_lstNode;
-
-    list<list<CSkipNode*>::iterator> m_lstIter[MAX_NODE_INDEX];
+    map<__int64, CSkipNode*>            m_mapNode;
+    list<CSkipNode*>                    m_lstNode;
+    list<list<CSkipNode*>::iterator>    m_lstIter[MAX_NODE_INDEX];
 
     CSkipList()
     {
@@ -84,7 +84,7 @@ public:
 
     void Init()
     {
-        for (int nCount = 1; nCount < 3; ++nCount)  // Max, Min Insert
+        for (int nCount = 1; nCount < 3; ++nCount)
         {
             double dScore = MAX_NODE_SCORE;
 
@@ -94,6 +94,8 @@ public:
             }
 
             CSkipNode* pNode = new CSkipNode(dScore, -nCount);
+
+            m_mapNode.insert(make_pair(pNode->m_nValue, pNode));
 
             m_lstNode.push_back(pNode);
 
@@ -130,6 +132,8 @@ public:
 
             CSkipNode* pNode = new CSkipNode(iterList.m_dScore, iterList.m_nValue);
 
+            m_mapNode.insert(make_pair(pNode->m_nValue, pNode));
+
             m_lstNode.push_back(pNode);
 
             auto iterNode = --m_lstNode.end();
@@ -158,28 +162,35 @@ public:
         return true;
     }
 
-    bool Update(CSkipNode* pNode, int& rSerchCount)
+    bool Delete(CSkipNode* pNode, int& rSerchCount)
     {
         if (pNode == nullptr)
         {
-            printf("pNode == nullptr,\n");
-
             return false;
         }
 
-        if (pNode->m_dScore <= MIN_NODE_SCORE && MAX_NODE_SCORE <= pNode->m_dScore)
+        ++rSerchCount;
+
+        int nIndex = 0;
+
+        for (auto iterNext : pNode->m_vecNext)
         {
-            printf("Error,MIN_NODE_SCORE && MAX_NODE_SCORE,%f,%lld,\n", pNode->m_dScore, pNode->m_nValue);
+            if (nIndex == 0)
+            {
+                m_lstNode.erase(*iterNext);
+            }
 
-            return false;
+            m_lstIter[nIndex].erase(iterNext);
+
+            ++nIndex;
         }
 
-        // 삭제 추가 필요
+        pNode->m_vecNext.clear();
 
-        return Search(pNode, rSerchCount, true);
+        return true;
     }
 
-    bool Search(CSkipNode* pNode, int& rSerchCount, bool bInsert = false, int nIndex = (MAX_NODE_INDEX - 1), 
+    bool Select(CSkipNode* pNode, int& rSerchCount, bool bInsert = false, int nIndex = (MAX_NODE_INDEX - 1),
         list<list<CSkipNode*>::iterator>::iterator* pIterPoint = nullptr, list<list<list<CSkipNode*>::iterator>::iterator>* pIterPointList = nullptr)
     {
         if (pNode == nullptr)
@@ -268,7 +279,7 @@ public:
                         pIterPointList->push_front(iterPoint);
                     }
 
-                    return Search(pNode, rSerchCount, bInsert, nIndex - 1, &pPoint->m_vecNext[nIndex - 1], pIterPointList);
+                    return Select(pNode, rSerchCount, bInsert, nIndex - 1, &pPoint->m_vecNext[nIndex - 1], pIterPointList);
                 }
 
                 if (pPoint->m_dScore == dScore && pPoint->m_nValue == nValue)
@@ -321,6 +332,69 @@ public:
 
         return false;
     }
+
+    bool Update(CSkipNode& rNode, int& rSerchCount)
+    {
+        if (rNode.m_dScore <= MIN_NODE_SCORE && MAX_NODE_SCORE <= rNode.m_dScore)
+        {
+            printf("Error,MIN_NODE_SCORE && MAX_NODE_SCORE,%f,%lld,\n", rNode.m_dScore, rNode.m_nValue);
+
+            return false;
+        }
+
+        if (rNode.m_nValue <= 0)
+        {
+            printf("m_nValue <= 0,\n");
+
+            return false;
+        }
+
+        unsigned __int64 uTick = GetTickCount64();
+
+        CSkipNode* pNode = nullptr;
+
+        auto iterNode = m_mapNode.find(rNode.m_nValue);
+
+        uTick = GetTickCount64() - uTick;
+
+        uTick = GetTickCount64();
+
+        if (iterNode != m_mapNode.end())
+        {
+            Delete(iterNode->second, rSerchCount);
+
+            iterNode->second->m_dScore = rNode.m_dScore;
+
+            pNode = iterNode->second;
+        }
+        else
+        {
+            CSkipNode* pNode = new CSkipNode(rNode.m_dScore, rNode.m_nValue);
+
+            m_mapNode.insert(make_pair(pNode->m_nValue, pNode));
+        }
+
+        uTick = GetTickCount64() - uTick;
+
+        uTick = GetTickCount64();
+
+        if (Select(pNode, rSerchCount, true) == false)
+        {
+            m_mapNode.erase(pNode->m_nValue);
+
+            delete pNode;
+
+            pNode = nullptr;
+
+            printf("Select == false,%f,%lld,\n", pNode->m_dScore, pNode->m_nValue);
+
+            return false;
+        }
+
+        uTick = GetTickCount64() - uTick;
+
+        return true;
+    }
 };
 
 bool compareCSkipNode(const CSkipNode& a, const CSkipNode& b) 
@@ -347,26 +421,29 @@ int Test()
 
     kList.Init(kNodeList);
 
-    kList.Update(new CSkipNode(88, 77), nSearchCount);
-    kList.Update(new CSkipNode(88, 66), nSearchCount);
-    kList.Update(new CSkipNode(55, 44), nSearchCount);
+    CSkipNode kNode11(88, 990001);
+    kList.Update(kNode11, nSearchCount);
+    CSkipNode kNode22(88, 66);
+    kList.Update(kNode22, nSearchCount);
+    CSkipNode kNode33(55, 44);
+    kList.Update(kNode33, nSearchCount);
 
     printf("List Size,%lld\n", kList.m_lstNode.size());
 
-    CSkipNode kNode1(88, 77);
-    kList.Search(&kNode1, nSearchCount);
+    CSkipNode kNode1(88, 990001);
+    kList.Update(kNode1, nSearchCount);
     CSkipNode kNode2(88, 88);
-    kList.Search(&kNode2, nSearchCount);
+    kList.Update(kNode2, nSearchCount);
     CSkipNode kNode3(88, 66);
-    kList.Search(&kNode3, nSearchCount);
+    kList.Update(kNode3, nSearchCount);
     CSkipNode kNode4(55, 55);
-    kList.Search(&kNode4, nSearchCount);
+    kList.Update(kNode4, nSearchCount);
     CSkipNode kNode5(55, 44);
-    kList.Search(&kNode5, nSearchCount);
+    kList.Update(kNode5, nSearchCount);
     CSkipNode kNode6(1, 1);
-    kList.Search(&kNode6, nSearchCount);
+    kList.Update(kNode6, nSearchCount);
     CSkipNode kNode7(MAX_NODE_COUNT, MAX_NODE_COUNT);
-    kList.Search(&kNode7, nSearchCount);
+    kList.Update(kNode7, nSearchCount);
 
     nSearchCount = 0;
 
@@ -385,14 +462,14 @@ int Test()
 
         int nCount = 0;
 
-        for (int nIndex = 0; nIndex < 2000; ++nIndex)
+        for (int nIndex = 0; nIndex < 10; ++nIndex)
         {                
             {
                 nCount = 0;
                 kNode.m_dScore = rand() % MAX_NODE_COUNT + 1;
                 kNode.m_nValue = (__int64)kNode.m_dScore;
 
-                kList.Search(&kNode, nCount);
+                kList.Update(kNode, nCount);
 
                 if (nMaxCount < nCount)
                 {
@@ -413,7 +490,7 @@ int Test()
                 kNode.m_dScore = rand() % 100000 + 1;
                 kNode.m_nValue = (__int64)kNode.m_dScore;
 
-                kList.Search(&kNode, nCount);
+                kList.Update(kNode, nCount);
 
                 if (nMaxCount < nCount)
                 {
@@ -434,7 +511,7 @@ int Test()
                 kNode.m_dScore = rand() % 10000 + 1;
                 kNode.m_nValue = (__int64)kNode.m_dScore;
 
-                kList.Search(&kNode, nCount);
+                kList.Update(kNode, nCount);
 
                 if (nMaxCount < nCount)
                 {
@@ -455,7 +532,7 @@ int Test()
                 kNode.m_dScore = rand() % 1000 + 1;
                 kNode.m_nValue = (__int64)kNode.m_dScore;
 
-                kList.Search(&kNode, nCount);
+                kList.Update(kNode, nCount);
 
                 if (nMaxCount < nCount)
                 {
@@ -476,7 +553,7 @@ int Test()
                 kNode.m_dScore = rand() % 100 + 1;
                 kNode.m_nValue = (__int64)kNode.m_dScore;
 
-                kList.Search(&kNode, nCount);
+                kList.Update(kNode, nCount);
 
                 if (nMaxCount < nCount)
                 {
@@ -493,7 +570,7 @@ int Test()
             }
         }
 
-        printf("Check,Count,%d,Search,%d,Avg,%d,Min,%d,Max,%d,Tick,%lld\n", nIndexCount, nSerchCount, nSerchCount / nIndexCount, nMinCount, nMaxCount, GetTickCount64() - uTick);
+        printf("Check,Count,%d,Update,%d,Avg,%d,Min,%d,Max,%d,Tick,%lld\n", nIndexCount, nSerchCount, nSerchCount / nIndexCount, nMinCount, nMaxCount, GetTickCount64() - uTick);
 
         Sleep(1000);
     }
