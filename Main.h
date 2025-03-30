@@ -11,8 +11,8 @@
 
 using namespace std;
 
-const int MAX_NODE_COUNT = 1000;
-const int MAX_NODE_INDEX = 6;
+const int MAX_NODE_COUNT = 1000000;
+const int MAX_NODE_INDEX = 16;
 
 const double MAX_NODE_SCORE = 1000000000000;
 const double MIN_NODE_SCORE = 0;
@@ -82,7 +82,37 @@ public:
         return true;
     }   
 
-    bool Test(list<CSkipNode>& rSortList)   // 외부에서 내림차순 정렬 된 데이터로 들어와야 한다..
+    void Init()
+    {
+        for (int nCount = 1; nCount < 3; ++nCount)  // Max, Min Insert
+        {
+            double dScore = MAX_NODE_SCORE;
+
+            if (nCount != 1)
+            {
+                dScore = MIN_NODE_SCORE;
+            }
+
+            CSkipNode* pNode = new CSkipNode(dScore, -nCount);
+
+            m_lstNode.push_back(pNode);
+
+            auto iterNode = --m_lstNode.end();
+
+            m_lstIter[0].push_back(iterNode);
+
+            (*iterNode)->m_vecNext.push_back(--m_lstIter[0].end());
+
+            for (int nIndex = 1; nIndex < MAX_NODE_INDEX; ++nIndex)
+            {
+                m_lstIter[nIndex].push_back(iterNode);
+
+                (*iterNode)->m_vecNext.push_back(--m_lstIter[nIndex].end());
+            }
+        }
+    }
+
+    bool Init(list<CSkipNode>& rSortList)   // 외부에서 내림차순 정렬 된 데이터로 들어와야 한다..
     {       
         rSortList.push_front(CSkipNode(MAX_NODE_SCORE, -1) );
         rSortList.push_back(CSkipNode(MIN_NODE_SCORE, -2));
@@ -112,7 +142,7 @@ public:
 
             for (int nIndex = 1; nIndex < MAX_NODE_INDEX; ++nIndex)
             {
-                if (nListCount != 0 && ChoiceInit(nListCount, nCheckCount) == false)
+                if (0 < pNode->m_nValue && ChoiceInit(nListCount, nCheckCount) == false)
                 {
                     break;
                 }
@@ -126,36 +156,6 @@ public:
         }
 
         return true;
-    }
-
-    void Init()
-    {       
-        for (int nCount = 1; nCount < 3; ++nCount)  // Max, Min Insert
-        {
-            double dScore = MAX_NODE_SCORE;
-
-            if (nCount != 1)
-            {
-                dScore = MIN_NODE_SCORE;
-            }
-
-            CSkipNode* pNode = new CSkipNode(dScore, -nCount);
-
-            m_lstNode.push_back(pNode);
-
-            auto iterNode = --m_lstNode.end();
-
-            m_lstIter[0].push_back(iterNode);
-
-            (*iterNode)->m_vecNext.push_back(--m_lstIter[0].end());
-
-            for (int nIndex = 1; nIndex < MAX_NODE_INDEX; ++nIndex)
-            {
-                m_lstIter[nIndex].push_back(iterNode);
-
-                (*iterNode)->m_vecNext.push_back(--m_lstIter[nIndex].end());
-            }
-        }
     }
 
     bool Update(CSkipNode* pNode, int& rSerchCount)
@@ -179,7 +179,8 @@ public:
         return Search(pNode, rSerchCount, true);
     }
 
-    bool Search(CSkipNode* pNode, int& rSerchCount, bool bInsert = false, int nIndex = (MAX_NODE_INDEX - 1), list<list<CSkipNode*>::iterator>::iterator* pIterPoint = nullptr)
+    bool Search(CSkipNode* pNode, int& rSerchCount, bool bInsert = false, int nIndex = (MAX_NODE_INDEX - 1), 
+        list<list<CSkipNode*>::iterator>::iterator* pIterPoint = nullptr, list<list<list<CSkipNode*>::iterator>::iterator>* pIterPointList = nullptr)
     {
         if (pNode == nullptr)
         {
@@ -194,7 +195,7 @@ public:
         if (dScore <= MIN_NODE_SCORE || MAX_NODE_SCORE <= dScore)
         {
             printf("MIN_NODE_SCORE || MAX_NODE_SCORE,\n");
-            //dScore = rand() % 10; // 임시 테스트..
+            
             return false;
         }
 
@@ -223,6 +224,11 @@ public:
         else
         {
             iterPoint = *pIterPoint;
+        }
+        
+        if (bInsert == true && pIterPointList == nullptr)
+        {
+            pIterPointList = new list<list<list<CSkipNode*>::iterator>::iterator>;
         }
 
         for (; iterPoint != m_lstIter[nIndex].end(); ++iterPoint)
@@ -257,12 +263,17 @@ public:
             {
                 if (0 < nIndex)
                 {
-                    return Search(pNode, rSerchCount, bInsert, nIndex - 1, &pPoint->m_vecNext[nIndex - 1]);
+                    if (bInsert == true)
+                    {
+                        pIterPointList->push_front(iterPoint);
+                    }
+
+                    return Search(pNode, rSerchCount, bInsert, nIndex - 1, &pPoint->m_vecNext[nIndex - 1], pIterPointList);
                 }
 
                 if (pPoint->m_dScore == dScore && pPoint->m_nValue == nValue)
                 {
-                    printf("Find Score,%f,Value,%lld,Index,%d,Count,%d,\n", dScore, nValue, nIndex, rSerchCount);
+                    //printf("Find Score,%f,Value,%lld,Index,%d,Count,%d,\n", dScore, nValue, nIndex, rSerchCount);
 
                     if (100 < rSerchCount)
                     {
@@ -273,10 +284,31 @@ public:
                 }
 
                 if (bInsert == true && dScore > dNextScore)
-                {
-                    auto iterInsert = m_lstNode.insert((*iterNext), pNode);
+                {           
+                    auto iterInsertNode = m_lstNode.insert((*iterNext), pNode);
+                 
+                    auto iterInsertPoint = m_lstIter[nIndex].insert(iterNext, iterInsertNode);
 
-                    m_lstIter[nIndex].insert(iterNext, iterInsert);
+                    pNode->m_vecNext.push_back(iterInsertPoint);
+
+                    for (auto iterInsertNext : *pIterPointList)
+                    {
+                        if (ChoiceInsert() == false)
+                        {
+                            break;
+                        }
+
+                        auto iterInsertPoint = m_lstIter[++nIndex].insert(++iterInsertNext, iterInsertNode);
+
+                        pNode->m_vecNext.push_back(iterInsertPoint);
+                    }
+
+                    if (pIterPointList != nullptr)
+                    {
+                        delete pIterPointList;
+
+                        pIterPointList = nullptr;
+                    }
 
                     return true;
                 }
@@ -302,15 +334,18 @@ int Test()
 
     CSkipList kList;
 
-    kList.Init();
-
-    int nRand = MAX_NODE_COUNT - ( rand() % 100 );
     int nSearchCount = 0;
     
-    for (int nCount = nRand; nCount > 0; --nCount)
+    list<CSkipNode> kNodeList;
+
+    for (int nCount = MAX_NODE_COUNT; nCount > 0; --nCount)
     {
-        kList.Update(new CSkipNode(nCount, nCount), nSearchCount);
+        kNodeList.push_back(CSkipNode(nCount, nCount));
     }
+
+    kNodeList.sort(compareCSkipNode);
+
+    kList.Init(kNodeList);
 
     kList.Update(new CSkipNode(88, 77), nSearchCount);
     kList.Update(new CSkipNode(88, 66), nSearchCount);
@@ -318,37 +353,20 @@ int Test()
 
     printf("List Size,%lld\n", kList.m_lstNode.size());
 
-    CSkipNode kNode(88, 77);
-    kList.Search(&kNode, nSearchCount);
-
-    nSearchCount = 0;
-
-    /*
-    list<CSkipNode> kNodeList;
-
-    for (int nCount = nRand; nCount > 0; --nCount)
-    {
-        kNodeList.push_back(CSkipNode(nCount, nCount));
-    }
-
-    kNodeList.push_back(CSkipNode(88, 77));
-    kNodeList.push_back(CSkipNode(88, 66));
-    kNodeList.push_back(CSkipNode(55, 44));
-
-    kNodeList.sort(compareCSkipNode);
-  
-    kList.Test(kNodeList);
-
-    printf("List Size,%lld\n", kList.m_lstNode.size());
-
-    kList.Search(88, 77, nSearchCount);
-    kList.Search(88, 88, nSearchCount);
-    kList.Search(88, 66, nSearchCount);
-    kList.Search(55, 55, nSearchCount);
-    kList.Search(55, 44, nSearchCount);
-
-    kList.Search(1, 1, nSearchCount);   
-    kList.Search(nRand, nRand, nSearchCount);
+    CSkipNode kNode1(88, 77);
+    kList.Search(&kNode1, nSearchCount);
+    CSkipNode kNode2(88, 88);
+    kList.Search(&kNode2, nSearchCount);
+    CSkipNode kNode3(88, 66);
+    kList.Search(&kNode3, nSearchCount);
+    CSkipNode kNode4(55, 55);
+    kList.Search(&kNode4, nSearchCount);
+    CSkipNode kNode5(55, 44);
+    kList.Search(&kNode5, nSearchCount);
+    CSkipNode kNode6(1, 1);
+    kList.Search(&kNode6, nSearchCount);
+    CSkipNode kNode7(MAX_NODE_COUNT, MAX_NODE_COUNT);
+    kList.Search(&kNode7, nSearchCount);
 
     nSearchCount = 0;
 
@@ -363,104 +381,123 @@ int Test()
         int nMaxCount = 0;
         int nMinCount = 100000000;
 
+        CSkipNode kNode(0, 0);
+
+        int nCount = 0;
+
         for (int nIndex = 0; nIndex < 2000; ++nIndex)
-        {          
-            nCount = 0;
-
-            kList.Search((rand() + nRand) % nRand, nCount);
-
-            if (nMaxCount < nCount)
+        {                
             {
-                nMaxCount = nCount;
+                nCount = 0;
+                kNode.m_dScore = rand() % MAX_NODE_COUNT + 1;
+                kNode.m_nValue = (__int64)kNode.m_dScore;
+
+                kList.Search(&kNode, nCount);
+
+                if (nMaxCount < nCount)
+                {
+                    nMaxCount = nCount;
+                }
+
+                if (nMinCount > nCount)
+                {
+                    nMinCount = nCount;
+                }
+
+                ++nIndexCount;
+                nSerchCount += nCount;
             }
 
-            if (nMinCount > nCount)
             {
-                nMinCount = nCount;
+                nCount = 0;
+                kNode.m_dScore = rand() % 100000 + 1;
+                kNode.m_nValue = (__int64)kNode.m_dScore;
+
+                kList.Search(&kNode, nCount);
+
+                if (nMaxCount < nCount)
+                {
+                    nMaxCount = nCount;
+                }
+
+                if (nMinCount > nCount)
+                {
+                    nMinCount = nCount;
+                }
+
+                ++nIndexCount;
+                nSerchCount += nCount;
             }
 
-            ++nIndexCount;
-
-            nSerchCount += nCount;
-
-            nCount = 0;
-
-            kList.Search((rand() + nRand) % 100000, nCount);
-
-            if (nMaxCount < nCount)
             {
-                nMaxCount = nCount;
+                nCount = 0;
+                kNode.m_dScore = rand() % 10000 + 1;
+                kNode.m_nValue = (__int64)kNode.m_dScore;
+
+                kList.Search(&kNode, nCount);
+
+                if (nMaxCount < nCount)
+                {
+                    nMaxCount = nCount;
+                }
+
+                if (nMinCount > nCount)
+                {
+                    nMinCount = nCount;
+                }
+
+                ++nIndexCount;
+                nSerchCount += nCount;
             }
 
-            if (nMinCount > nCount)
             {
-                nMinCount = nCount;
+                nCount = 0;
+                kNode.m_dScore = rand() % 1000 + 1;
+                kNode.m_nValue = (__int64)kNode.m_dScore;
+
+                kList.Search(&kNode, nCount);
+
+                if (nMaxCount < nCount)
+                {
+                    nMaxCount = nCount;
+                }
+
+                if (nMinCount > nCount)
+                {
+                    nMinCount = nCount;
+                }
+
+                ++nIndexCount;
+                nSerchCount += nCount;
             }
 
-            ++nIndexCount;
-
-            nSerchCount += nCount;
-
-            nCount = 0;
-
-            kList.Search((rand() + nRand) % 10000, nCount);
-
-            if (nMaxCount < nCount)
             {
-                nMaxCount = nCount;
+                nCount = 0;
+                kNode.m_dScore = rand() % 100 + 1;
+                kNode.m_nValue = (__int64)kNode.m_dScore;
+
+                kList.Search(&kNode, nCount);
+
+                if (nMaxCount < nCount)
+                {
+                    nMaxCount = nCount;
+                }
+
+                if (nMinCount > nCount)
+                {
+                    nMinCount = nCount;
+                }
+
+                ++nIndexCount;
+                nSerchCount += nCount;
             }
-
-            if (nMinCount > nCount)
-            {
-                nMinCount = nCount;
-            }
-
-            ++nIndexCount;
-
-            nSerchCount += nCount;
-
-            nCount = 0;
-
-            kList.Search((rand() + nRand) % 1000, nCount);
-
-            if (nMaxCount < nCount)
-            {
-                nMaxCount = nCount;
-            }
-
-            if (nMinCount > nCount)
-            {
-                nMinCount = nCount;
-            }
-
-            ++nIndexCount;
-
-            nSerchCount += nCount;
-
-            nCount = 0;
-
-            kList.Search((rand() + nRand) % 100, nCount);
-
-            if (nMaxCount < nCount)
-            {
-                nMaxCount = nCount;
-            }
-
-            if (nMinCount > nCount)
-            {
-                nMinCount = nCount;
-            }
-
-            ++nIndexCount;
-
-            nSerchCount += nCount;
         }
 
         printf("Check,Count,%d,Search,%d,Avg,%d,Min,%d,Max,%d,Tick,%lld\n", nIndexCount, nSerchCount, nSerchCount / nIndexCount, nMinCount, nMaxCount, GetTickCount64() - uTick);
 
         Sleep(1000);
     }
-*/
+
     return 0;
 }
 
