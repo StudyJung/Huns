@@ -12,7 +12,7 @@
 using namespace std;
 
 const int MAX_NODE_COUNT = 1000000;
-const int MAX_NODE_INDEX = 16;
+const int MAX_NODE_INDEX = 6;
 
 const double MAX_NODE_SCORE = 1000000000000;
 const double MIN_NODE_SCORE = 0;
@@ -83,14 +83,7 @@ public:
     }   
 
     bool Test(list<CSkipNode>& rSortList)   // 외부에서 내림차순 정렬 된 데이터로 들어와야 한다..
-    {   
-        if (MAX_NODE_COUNT < rSortList.size())
-        {
-            printf("Error,MAX_NODE_COUNT < rSortList.size(),\n");
-
-            return false;
-        }
-        
+    {       
         rSortList.push_front(CSkipNode(MAX_NODE_SCORE, -1) );
         rSortList.push_back(CSkipNode(MIN_NODE_SCORE, -2));
 
@@ -278,7 +271,7 @@ public:
                 dNextScore = (*(*iterNext))->m_dScore;
             }
    
-            if (pNode->m_dScore >= dScore && dScore > dNextScore)
+            if (pNode->m_dScore >= dScore && dScore >= dNextScore)
             {
                 if (0 < nIndex)
                 {
@@ -287,19 +280,19 @@ public:
 
                 if (pNode->m_dScore == dScore && pNode->m_nValue == nValue)
                 {
-                    printf("Find Score,%f,Index,%d,%d,\n", dScore, nIndex, rSerchCount);
+                    printf("Find Score,%f,Value,%lld,Index,%d,Count,%d,\n", dScore, nValue, nIndex, rSerchCount);
 
                     if (100 < rSerchCount)
                     {
-                        printf("War,100 < rSerchCount, Score,%f,Index,%d,%d,\n", dScore, nIndex, rSerchCount);
+                        printf("War,100 < rSerchCount,Score,%f,Value,%lld,Index,%d,Count,%d,\n", dScore, nValue, nIndex, rSerchCount);
                     }
-                }
-                else
-                {
-                    // 인서트
-                }              
 
-                return true;
+                    return true;
+                }
+
+                // 인서트 조건         
+
+                continue;
             }
         }
 
@@ -308,6 +301,10 @@ public:
         return false;
     }
 };
+
+bool compareCSkipNode(const CSkipNode& a, const CSkipNode& b) {
+    return a.m_dScore > b.m_dScore; // 내림차순 정렬
+}
 
 int Test()
 {
@@ -318,7 +315,6 @@ int Test()
     CSkipList kList;
 
     kList.Init();
-
     for (int nCount = nRand; nCount > 0; --nCount)
     {
         CSkipNode   kNode(nCount, nCount);
@@ -326,7 +322,7 @@ int Test()
         kList.Insert(kNode);
     }
 
-/*
+    /*
     list<CSkipNode> kNodeList;
 
     for (int nCount = nRand; nCount > 0; --nCount)
@@ -334,15 +330,28 @@ int Test()
         kNodeList.push_back(CSkipNode(nCount, nCount));
     }
 
+    kNodeList.push_back(CSkipNode(88, 77));
+    kNodeList.push_back(CSkipNode(88, 66));
+    kNodeList.push_back(CSkipNode(55, 44));
+
+    kNodeList.sort(compareCSkipNode);
+  
     kList.Test(kNodeList);
+
+    printf("List Size,%lld\n", kList.m_lstNode.size());
 
     int nCount = 0;
 
-    kList.Search(0, nCount);
-    kList.Search(1, nCount);
-    kList.Search(nRand, nCount);
+    kList.Search(88, 77, nCount);
+    kList.Search(88, 88, nCount);
+    kList.Search(88, 66, nCount);
+    kList.Search(55, 55, nCount);
+    kList.Search(55, 44, nCount);
 
-    printf("List Size,%lld\n", kList.m_lstNode.size());
+    kList.Search(1, 1, nCount);   
+    kList.Search(nRand, nRand, nCount);
+
+    nCount = 0;
 
     while (true)
     {
