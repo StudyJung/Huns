@@ -18,7 +18,7 @@ const int WAR_SEARCH_COUNT  = MAX_NODE_INDEX * 10;
 const double MAX_NODE_SCORE = 1000000000000;
 const double MIN_NODE_SCORE = -1;
 
-class CRankingIterator;
+class CRankingIter;
 
 class CRankingNode
 {
@@ -27,7 +27,7 @@ public:
     double      m_dScore;
     __int64     m_nValue;
 
-    vector<list<CRankingIterator>::iterator>  m_vecLevel;
+    vector<list<CRankingIter>::iterator>  m_vecLevel;
 
     CRankingNode()
     {
@@ -46,7 +46,7 @@ public:
     }
 };
 
-class CRankingIterator
+class CRankingIter
 {
 public:
 
@@ -54,12 +54,12 @@ public:
 
 	int	m_nCount;
 
-	CRankingIterator(list<CRankingNode*>::iterator& rIterator, int nCount = 0): m_rIterator(rIterator)
+	CRankingIter(list<CRankingNode*>::iterator& rIterator, int nCount = 0): m_rIterator(rIterator)
 	{
 		m_nCount = nCount;
 	}
 
-	~CRankingIterator()
+	~CRankingIter()
 	{
 	}
 };
@@ -71,7 +71,7 @@ public:
     map<__int64, CRankingNode*>	m_mapNode;
     list<CRankingNode*>			m_lstNode;
 	vector<int>					m_vecCount;
-	list<CRankingIterator>		m_lstIterator[MAX_NODE_INDEX];
+	list<CRankingIter>		    m_lstIter[MAX_NODE_INDEX];
 
     CRankingList()
     {
@@ -153,9 +153,9 @@ public:
 
 			auto iterNode = --m_lstNode.end();
 
-			m_lstIterator[0].push_back(CRankingIterator(iterNode, CountGet(0)));
+			m_lstIter[0].push_back(CRankingIter(iterNode, CountGet(0)));
 
-			(*iterNode)->m_vecLevel.push_back(--m_lstIterator[0].end());
+			(*iterNode)->m_vecLevel.push_back(--m_lstIter[0].end());
 
 			for (int nIndex = 1; nIndex < MAX_NODE_INDEX; ++nIndex)
 			{
@@ -164,9 +164,9 @@ public:
 					break;
 				}
 
-				m_lstIterator[nIndex].push_back(CRankingIterator(iterNode, CountGet(nIndex)));
+				m_lstIter[nIndex].push_back(CRankingIter(iterNode, CountGet(nIndex)));
 
-				(*iterNode)->m_vecLevel.push_back(--m_lstIterator[nIndex].end());
+				(*iterNode)->m_vecLevel.push_back(--m_lstIter[nIndex].end());
 
 				CountSet(nIndex);
 			}
@@ -201,13 +201,13 @@ public:
 			{
 				auto iterNext = iterLevel;
 
-				if (++iterNext != m_lstIterator[nIndex].end())
+				if (++iterNext != m_lstIter[nIndex].end())
 				{
 					iterNext->m_nCount += iterLevel->m_nCount;
 				}
 			}
 
-            m_lstIterator[nIndex].erase(iterLevel);
+            m_lstIter[nIndex].erase(iterLevel);
 
             ++nIndex;
         }
@@ -218,7 +218,7 @@ public:
     }
 
     bool Select(CRankingNode* pNode, int& rRanking, int& rSearch, bool bInsert = false, int nIndex = (MAX_NODE_INDEX - 1),
-        list<CRankingIterator>::iterator* pIterPoint = nullptr, list<list<CRankingIterator>::iterator>* pIterPointList = nullptr)
+        list<CRankingIter>::iterator* pIterPoint = nullptr, list<pair<list<CRankingIter>::iterator,int>>* pIterPointList = nullptr)
     {
         if (pNode == nullptr)
         {
@@ -251,11 +251,11 @@ public:
             return false;
         }
 
-        list<CRankingIterator>::iterator iterPoint;
+        list<CRankingIter>::iterator iterPoint;
 
         if (pIterPoint == nullptr)
         {
-            iterPoint = m_lstIterator[nIndex].begin();
+            iterPoint = m_lstIter[nIndex].begin();
 
             rSearch = 0;
         }
@@ -266,15 +266,15 @@ public:
         
         if (bInsert == true && pIterPointList == nullptr)
         {
-            pIterPointList = new list<list<CRankingIterator>::iterator>;
+            pIterPointList = new list<pair<list<CRankingIter>::iterator, int>>;
         }
 
-        for (; iterPoint != m_lstIterator[nIndex].end(); ++iterPoint)
+        int nNodeCount = 0;
+
+        for (; iterPoint != m_lstIter[nIndex].end(); ++iterPoint)
         {
             //printf("Search Index,%d,%d,\n", nIndex, rSearch);
-
-            ++rSearch;
-            
+           
             CRankingNode* pPoint = *((*iterPoint).m_rIterator);
 
             if (pPoint == nullptr)
@@ -284,6 +284,10 @@ public:
                 return false;
             }
 
+            ++rSearch;
+
+            ++nNodeCount;
+
             ++iterPoint;
 
             auto iterNext = iterPoint;
@@ -292,7 +296,7 @@ public:
 
             double dNextScore = MIN_NODE_SCORE;
 
-            if (iterNext != m_lstIterator[nIndex].end())
+            if (iterNext != m_lstIter[nIndex].end())
             {
                 dNextScore = (*((*iterNext).m_rIterator))->m_dScore;
             }
@@ -303,7 +307,7 @@ public:
                 {
                     if (bInsert == true)
                     {
-                        pIterPointList->push_front(iterPoint);
+                        pIterPointList->push_front(make_pair(iterPoint, iterPoint->m_nCount));
                     }
 
                     return Select(pNode, rRanking, rSearch, bInsert, nIndex - 1, &pPoint->m_vecLevel[nIndex - 1], pIterPointList);
@@ -329,20 +333,28 @@ public:
 
                     auto iterInsertNode = m_lstNode.insert((*iterNext).m_rIterator, pNode);
                  
-                    auto iterInsertPoint = m_lstIterator[nIndex].insert(iterNext, iterInsertNode);
+                    auto iterInsertIter = m_lstIter[nIndex].insert(iterNext, iterInsertNode);
 
-                    pNode->m_vecLevel.push_back(iterInsertPoint);
+                    iterInsertIter->m_nCount = 1;
 
-                    for (auto iterInsertNext : *pIterPointList)
+                    pNode->m_vecLevel.push_back(iterInsertIter);
+
+                    for (auto iterInsertPoint : *pIterPointList)
                     {
                         if (RandomNext() == false)
                         {
                             break;
                         }
+                        
+                        auto iterInsertLevel = m_lstIter[++nIndex].insert(++iterInsertPoint.first, iterInsertNode);
 
-                        auto iterInsertPoint = m_lstIterator[++nIndex].insert(++iterInsertNext, iterInsertNode);
+                        if (0 < nIndex) // ??
+                        {
+                            (*iterInsertLevel).m_nCount = nNodeCount;
+                            (*iterInsertPoint.first).m_nCount -= nNodeCount;
+                        }
 
-                        pNode->m_vecLevel.push_back(iterInsertPoint);
+                        pNode->m_vecLevel.push_back(iterInsertLevel);
                     }
 
                     if (pIterPointList != nullptr)
