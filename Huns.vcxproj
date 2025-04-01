@@ -130,10 +130,10 @@
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Main.h" />
+    <None Include=".gitignore" />
   </ItemGroup>
   <ItemGroup>
-    <None Include=".gitignore" />
+    <ClInclude Include="RankingList.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
