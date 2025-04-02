@@ -217,8 +217,66 @@ public:
         return true;
     }
 
-    bool Select(CRankingNode* pNode, int& rRanking, int& rSearchCount, int& rNodeCount, bool bInsert, int nIndex = (MAX_NODE_INDEX - 1),
-        list<CRankingIter>::iterator* piterNode = nullptr, list<pair<list<CRankingIter>::iterator,int>>* piterNodeList = nullptr)
+    bool Update(CRankingNode& rNodeCount, int& rRanking, int& rSearchCount)
+    {
+        rRanking = 0;
+        rSearchCount = 0;
+
+        if (rNodeCount.m_dScore < MIN_NODE_SCORE && MAX_NODE_SCORE <= rNodeCount.m_dScore)
+        {
+            printf("Error,MIN_NODE_SCORE && MAX_NODE_SCORE,%f,%lld,\n", rNodeCount.m_dScore, rNodeCount.m_nValue);
+
+            return false;
+        }
+
+        if (rNodeCount.m_nValue <= 0)
+        {
+            printf("Error,m_nValue <= 0,\n");
+
+            return false;
+        }
+
+        CRankingNode* pNode = nullptr;
+
+        auto iterNodeCount = m_mapValue.find(rNodeCount.m_nValue);
+
+        if (iterNodeCount != m_mapValue.end())
+        {
+            Delete(iterNodeCount->second);
+
+            iterNodeCount->second->m_dScore = rNodeCount.m_dScore;
+
+            pNode = iterNodeCount->second;
+        }
+        else
+        {
+            pNode = new CRankingNode(rNodeCount.m_dScore, rNodeCount.m_nValue);
+
+            m_mapValue.insert(make_pair(pNode->m_nValue, pNode));
+        }
+
+        int nNodeCount = 0;
+
+        if (Select(pNode, rRanking, rSearchCount, nNodeCount, true) == false)
+        {
+            m_mapValue.erase(pNode->m_nValue);
+
+            delete pNode;
+
+            pNode = nullptr;
+
+            printf("Error,Select == false,%f,%lld,\n", pNode->m_dScore, pNode->m_nValue);
+
+            return false;
+        }
+
+        return true;
+    }
+
+private:
+
+    bool Select(CRankingNode* pNode, int& rRanking, int& rSearchCount, int& rNodeCount, bool bInsert,
+        list<CRankingIter>::iterator* piterRanking = nullptr, list<pair<list<CRankingIter>::iterator,int>>* piterRankingList = nullptr, int nIndex = (MAX_NODE_INDEX - 1))
     {
         if (pNode == nullptr)
         {
@@ -254,22 +312,20 @@ public:
         list<CRankingIter>::iterator iterPoint;
         list<CRankingIter>::iterator iterRanking;
 
-        if (piterNode == nullptr)
+        if (piterRanking == nullptr)
         {
             iterRanking = m_lstRanking[nIndex].begin();
-
-            iterPoint = iterRanking;
 
             rSearchCount = 0;		
         }
         else
         {
-            iterRanking = *piterNode;
+            iterRanking = *piterRanking;
         }
         
-        if (bInsert == true && piterNodeList == nullptr)
+        if (bInsert == true && piterRankingList == nullptr)
         {
-            piterNodeList = new list<pair<list<CRankingIter>::iterator, int>>;
+            piterRankingList = new list<pair<list<CRankingIter>::iterator, int>>;
         }
 
 		int nNode = 0;
@@ -289,11 +345,11 @@ public:
 
             ++rSearchCount;
 			
-			if (piterNode == nullptr || iterPoint != iterRanking)
+			if (nIndex == (MAX_NODE_INDEX - 1) || piterRanking != nullptr)
 			{
 				rNodeCount += iterRanking->m_nCount;
 
-                iterPoint = iterRanking;
+                piterRanking = nullptr;
 			}
 
             auto iterNext = next(iterRanking);
@@ -318,10 +374,10 @@ public:
                             printf("Error,rNodeCount == 0,%f,%lld\n", pPoint->m_dScore, pPoint->m_nValue);
                         }
 
-                        piterNodeList->push_front(make_pair(iterRanking, rNodeCount));
+                        piterRankingList->push_front(make_pair(iterRanking, rNodeCount));
                     }
 
-                    return Select(pNode, rRanking, rSearchCount, rNodeCount, bInsert, nIndex - 1, &pPoint->m_vecLevel[nIndex - 1], piterNodeList);
+                    return Select(pNode, rRanking, rSearchCount, rNodeCount, bInsert, &pPoint->m_vecLevel[nIndex - 1], piterRankingList, nIndex - 1);
                 }
 
 				++rRanking;
@@ -356,7 +412,7 @@ public:
 
                     pNode->m_vecLevel.push_back(iterInsertIter);
 
-                    for (auto iterInsertPoint : *piterNodeList)
+                    for (auto iterInsertPoint : *piterRankingList)
                     {
 						//if (RandomNext() == false)
                         {
@@ -384,11 +440,11 @@ public:
                         printf("War,WAR_SEARCH_COUNT < rSearchCount,Score,%f,Value,%lld,Index,%d,Ranking,%d,Search,%d,\n", dScore, nValue, nIndex, rRanking, rSearchCount);
                     }
 
-					if (piterNodeList != nullptr)
+					if (piterRankingList != nullptr)
                     {
-                        delete piterNodeList;
+                        delete piterRankingList;
 
-                        piterNodeList = nullptr;
+                        piterRankingList = nullptr;
                     }
 
                     return true;
@@ -408,63 +464,7 @@ public:
         printf("Error,return false,\n");
 
         return false;
-    }
-
-    bool Update(CRankingNode& rNodeCount, int& rRanking, int& rSearchCount)
-    {
-		rRanking = 0;
-		rSearchCount = 0;
-
-        if (rNodeCount.m_dScore < MIN_NODE_SCORE && MAX_NODE_SCORE <= rNodeCount.m_dScore)
-        {
-            printf("Error,MIN_NODE_SCORE && MAX_NODE_SCORE,%f,%lld,\n", rNodeCount.m_dScore, rNodeCount.m_nValue);
-
-            return false;
-        }
-
-        if (rNodeCount.m_nValue <= 0)
-        {
-            printf("Error,m_nValue <= 0,\n");
-
-            return false;
-        }
-
-        CRankingNode* pNode = nullptr;
-
-        auto iterNodeCount = m_mapValue.find(rNodeCount.m_nValue);
-
-        if (iterNodeCount != m_mapValue.end())
-        {
-            Delete(iterNodeCount->second);
-
-            iterNodeCount->second->m_dScore = rNodeCount.m_dScore;
-
-            pNode = iterNodeCount->second;
-        }
-        else
-        {
-            pNode = new CRankingNode(rNodeCount.m_dScore, rNodeCount.m_nValue);
-
-            m_mapValue.insert(make_pair(pNode->m_nValue, pNode));
-        }
-
-		int nNodeCount = 0;
-
-        if (Select(pNode, rRanking, rSearchCount, nNodeCount, true) == false)
-        {
-            m_mapValue.erase(pNode->m_nValue);
-
-            delete pNode;
-
-            pNode = nullptr;
-
-            printf("Error,Select == false,%f,%lld,\n", pNode->m_dScore, pNode->m_nValue);
-
-            return false;
-        }
-
-        return true;
-    }
+    }  
 };
 
 /*
