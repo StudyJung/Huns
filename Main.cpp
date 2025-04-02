@@ -18,13 +18,38 @@ int TestCRankingList()
     }
 
     kList.Init(kNodeList);
+    CRankingNode kNode123(8, 8);
+    kList.Update(kNode123, nRanking, nSearchCount);
 
-    CRankingNode kNode11(80001, 80001);
+    while (true)
+    {
+        int nRanking = 0;
+        int nCount = 0;
+
+        CRankingNode kNode(0, 0);
+
+        kNode.m_dScore = rand() % MAX_NODE_COUNT + 1;
+        kNode.m_nValue = (__int64)kNode.m_dScore;
+
+        if (kList.Update(kNode, nRanking, nCount) == false)
+        {
+            printf("Error,Update == false,\n");
+        }
+
+        if (kNode.m_dScore + nRanking - 1 != MAX_NODE_COUNT)
+        {
+            int i = 0;
+        }
+
+        Sleep(10);
+    }
+
+    CRankingNode kNode11(7, 7);
     kList.Update(kNode11, nRanking, nSearchCount);
-    CRankingNode kNode22(88, 66);
+    CRankingNode kNode22(8, 8);
     kList.Update(kNode22, nRanking, nSearchCount);
-    CRankingNode kNode33(55, 44);
-    kList.Update(kNode33, nRanking, nSearchCount);
+    CRankingNode kNode33(6, 6);
+
 
     printf("List Size,%lld\n", kList.m_lstNode.size());
 
