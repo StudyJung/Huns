@@ -11,8 +11,8 @@
 
 using namespace std;
 
-const int MAX_NODE_COUNT    = 100000;
-const int MAX_NODE_INDEX    = 16;
+const int MAX_NODE_COUNT    = 10;
+const int MAX_NODE_INDEX    = 6;
 const int WAR_SEARCH_COUNT  = MAX_NODE_INDEX * 10;
 
 const double MAX_NODE_SCORE = 1000000000000;
@@ -151,11 +151,11 @@ public:
 
 			m_lstNode.push_back(pNode);
 
-			auto iterNode = --m_lstNode.end();
+			auto iterNodeCount = prev(m_lstNode.end());
 
-			m_lstIter[0].push_back(CRankingIter(iterNode, CountGet(0)));
+			m_lstIter[0].push_back(CRankingIter(iterNodeCount, CountGet(0)));
 
-			(*iterNode)->m_vecLevel.push_back(--m_lstIter[0].end());
+			(*iterNodeCount)->m_vecLevel.push_back(prev(m_lstIter[0].end()));
 
 			for (int nIndex = 1; nIndex < MAX_NODE_INDEX; ++nIndex)
 			{
@@ -164,9 +164,9 @@ public:
 					break;
 				}
 
-				m_lstIter[nIndex].push_back(CRankingIter(iterNode, CountGet(nIndex)));
+				m_lstIter[nIndex].push_back(CRankingIter(iterNodeCount, CountGet(nIndex)));
 
-				(*iterNode)->m_vecLevel.push_back(--m_lstIter[nIndex].end());
+				(*iterNodeCount)->m_vecLevel.push_back(prev(m_lstIter[nIndex].end()));
 
 				CountSet(nIndex);
 			}
@@ -199,9 +199,9 @@ public:
             }
 			else
 			{
-				auto iterNext = iterLevel;
+				auto iterNext = std::next(iterLevel);
 
-				if (++iterNext != m_lstIter[nIndex].end())
+				if (iterNext != m_lstIter[nIndex].end())
 				{
 					iterNext->m_nCount += iterLevel->m_nCount;
 				}
@@ -217,7 +217,7 @@ public:
         return true;
     }
 
-    bool Select(CRankingNode* pNode, int& rRanking, int& rSearch, bool bInsert = false, int nIndex = (MAX_NODE_INDEX - 1),
+    bool Select(CRankingNode* pNode, int& rRanking, int& rSearchCount, int& rNodeCount, bool bInsert, int nIndex = (MAX_NODE_INDEX - 1),
         list<CRankingIter>::iterator* pIterPoint = nullptr, list<pair<list<CRankingIter>::iterator,int>>* pIterPointList = nullptr)
     {
         if (pNode == nullptr)
@@ -257,7 +257,9 @@ public:
         {
             iterPoint = m_lstIter[nIndex].begin();
 
-            rSearch = 0;
+			pIterPoint = &iterPoint;
+
+            rSearchCount = 0;		
         }
         else
         {
@@ -269,11 +271,11 @@ public:
             pIterPointList = new list<pair<list<CRankingIter>::iterator, int>>;
         }
 
-        int nNodeCount = 0;
+		int nNode = 0;
 
         for (; iterPoint != m_lstIter[nIndex].end(); ++iterPoint)
         {
-            //printf("Search Index,%d,%d,\n", nIndex, rSearch);
+            //printf("Search Index,%d,%d,\n", nIndex, rSearchCount);
            
             CRankingNode* pPoint = *((*iterPoint).m_rIterator);
 
@@ -284,15 +286,14 @@ public:
                 return false;
             }
 
-            ++rSearch;
+            ++rSearchCount;
+			
+			if (pIterPoint == nullptr || *pIterPoint != iterPoint)
+			{
+				rNodeCount += iterPoint->m_nCount;
+			}
 
-            ++nNodeCount;
-
-            ++iterPoint;
-
-            auto iterNext = iterPoint;
-
-            --iterPoint;
+            auto iterNext = next(iterPoint);
 
             double dNextScore = MIN_NODE_SCORE;
 
@@ -307,29 +308,37 @@ public:
                 {
                     if (bInsert == true)
                     {
-                        pIterPointList->push_front(make_pair(iterPoint, iterPoint->m_nCount));
+						iterPoint->m_nCount = rNodeCount;
+
+                        pIterPointList->push_front(make_pair(iterPoint, rNodeCount));
                     }
 
-                    return Select(pNode, rRanking, rSearch, bInsert, nIndex - 1, &pPoint->m_vecLevel[nIndex - 1], pIterPointList);
+                    return Select(pNode, rRanking, rSearchCount, rNodeCount, bInsert, nIndex - 1, &pPoint->m_vecLevel[nIndex - 1], pIterPointList);
                 }
 
 				++rRanking;
-
+				
                 if (pPoint->m_dScore == dScore && pPoint->m_nValue == nValue)
                 {
-                    printf("Search Score,%f,Value,%lld,Index,%d,Ranking,%d,Search,%d,\n", dScore, nValue, nIndex, rRanking, rSearch);
+                    //printf("Search Score,%f,Value,%lld,Index,%d,Ranking,%d,Search,%d,\n", dScore, nValue, nIndex, rRanking, rSearchCount);
 
-                    if (nIndex == 0 && WAR_SEARCH_COUNT < rSearch)
+                    if (nIndex == 0 && WAR_SEARCH_COUNT < rSearchCount)
                     {
-                        printf("War,WAR_SEARCH_COUNT < rSearch,Score,%f,Value,%lld,Index,%d,Ranking,%d,Search,%d,\n", dScore, nValue, nIndex, rRanking, rSearch);
+                        printf("War,WAR_SEARCH_COUNT < rSearchCount,Score,%f,Value,%lld,Index,%d,Ranking,%d,Search,%d,\n", dScore, nValue, nIndex, rRanking, rSearchCount);
                     }
 
                     return true;
                 }
 
+				++rNodeCount;
+
                 if (bInsert == true && dScore > dNextScore)
                 {          
-					printf("Insert Score,%f,Value,%lld,Index,%d,Ranking,%d,Search,%d,\n", dScore, nValue, nIndex, rRanking, rSearch);
+					if (rRanking + dScore - 1 != MAX_NODE_COUNT)
+					{
+						int i = 0;
+					}
+					//printf("Insert Score,%f,Value,%lld,Index,%d,Ranking,%d,Search,%d,\n", dScore, nValue, nIndex, rRanking, rSearchCount);
 
                     auto iterInsertNode = m_lstNode.insert((*iterNext).m_rIterator, pNode);
                  
@@ -341,32 +350,37 @@ public:
 
                     for (auto iterInsertPoint : *pIterPointList)
                     {
-                        if (RandomNext() == false)
+						//if (RandomNext() == false)
                         {
-                            break;
+                        //    break;
                         }
-                        
-                        auto iterInsertLevel = m_lstIter[++nIndex].insert(++iterInsertPoint.first, iterInsertNode);
+     
+						auto iterInsertNext = next(iterInsertPoint.first);
+                        auto iterInsertLevel = m_lstIter[++nIndex].insert(iterInsertNext, iterInsertNode);
+		
+						iterInsertLevel->m_nCount = rNodeCount - iterInsertPoint.second;
+						next(iterInsertLevel)->m_nCount -= iterInsertLevel->m_nCount;
 
-                        if (0 < nIndex) // ??
+						rNodeCount = iterInsertLevel->m_nCount + iterInsertPoint.second;
+
+                        if (iterInsertLevel->m_nCount == 0)
                         {
-                            (*iterInsertLevel).m_nCount = nNodeCount;
-                            (*iterInsertPoint.first).m_nCount -= nNodeCount;
+                            int i = 0;
                         }
 
                         pNode->m_vecLevel.push_back(iterInsertLevel);
+                    }           
+
+                    if (nIndex == 0 && WAR_SEARCH_COUNT < rSearchCount)
+                    {
+                        printf("War,WAR_SEARCH_COUNT < rSearchCount,Score,%f,Value,%lld,Index,%d,Ranking,%d,Search,%d,\n", dScore, nValue, nIndex, rRanking, rSearchCount);
                     }
 
-                    if (pIterPointList != nullptr)
+					if (pIterPointList != nullptr)
                     {
                         delete pIterPointList;
 
                         pIterPointList = nullptr;
-                    }
-
-                    if (nIndex == 0 && WAR_SEARCH_COUNT < rSearch)
-                    {
-                        printf("War,WAR_SEARCH_COUNT < rSearch,Score,%f,Value,%lld,Index,%d,Ranking,%d,Search,%d,\n", dScore, nValue, nIndex, rRanking, rSearch);
                     }
 
                     return true;
@@ -388,19 +402,19 @@ public:
         return false;
     }
 
-    bool Update(CRankingNode& rNode, int& rRanking, int& rSearch)
+    bool Update(CRankingNode& rNodeCount, int& rRanking, int& rSearchCount)
     {
 		rRanking = 0;
-		rSearch = 0;
+		rSearchCount = 0;
 
-        if (rNode.m_dScore < MIN_NODE_SCORE && MAX_NODE_SCORE <= rNode.m_dScore)
+        if (rNodeCount.m_dScore < MIN_NODE_SCORE && MAX_NODE_SCORE <= rNodeCount.m_dScore)
         {
-            printf("Error,MIN_NODE_SCORE && MAX_NODE_SCORE,%f,%lld,\n", rNode.m_dScore, rNode.m_nValue);
+            printf("Error,MIN_NODE_SCORE && MAX_NODE_SCORE,%f,%lld,\n", rNodeCount.m_dScore, rNodeCount.m_nValue);
 
             return false;
         }
 
-        if (rNode.m_nValue <= 0)
+        if (rNodeCount.m_nValue <= 0)
         {
             printf("Error,m_nValue <= 0,\n");
 
@@ -409,24 +423,26 @@ public:
 
         CRankingNode* pNode = nullptr;
 
-        auto iterNode = m_mapNode.find(rNode.m_nValue);
+        auto iterNodeCount = m_mapNode.find(rNodeCount.m_nValue);
 
-        if (iterNode != m_mapNode.end())
+        if (iterNodeCount != m_mapNode.end())
         {
-            Delete(iterNode->second);
+            Delete(iterNodeCount->second);
 
-            iterNode->second->m_dScore = rNode.m_dScore;
+            iterNodeCount->second->m_dScore = rNodeCount.m_dScore;
 
-            pNode = iterNode->second;
+            pNode = iterNodeCount->second;
         }
         else
         {
-            pNode = new CRankingNode(rNode.m_dScore, rNode.m_nValue);
+            pNode = new CRankingNode(rNodeCount.m_dScore, rNodeCount.m_nValue);
 
             m_mapNode.insert(make_pair(pNode->m_nValue, pNode));
         }
 
-        if (Select(pNode, rRanking, rSearch, true) == false)
+		int nNodeCount = 0;
+
+        if (Select(pNode, rRanking, rSearchCount, nNodeCount, true) == false)
         {
             m_mapNode.erase(pNode->m_nValue);
 
@@ -461,13 +477,38 @@ int TestCRankingList()
     }
 
     kList.Init(kNodeList);
+	CRankingNode kNode123(8, 8);
+    kList.Update(kNode123, nRanking, nSearchCount);
 
-    CRankingNode kNode11(80001, 80001);
+	while (true)
+	{
+		int nRanking = 0;
+        int nCount = 0;
+
+        CRankingNode kNode(0, 0);
+
+		kNode.m_dScore = rand() % MAX_NODE_COUNT + 1;
+        kNode.m_nValue = (__int64)kNode.m_dScore;
+
+        if (kList.Update(kNode, nRanking, nCount) == false)
+        {
+            printf("Error,Update == false,\n");
+        }
+
+		if (kNode.m_dScore + nRanking - 1 != MAX_NODE_COUNT)
+		{
+			int i = 0;
+		}
+
+		Sleep(10);
+	}
+
+    CRankingNode kNode11(7, 7);
     kList.Update(kNode11, nRanking, nSearchCount);
-    CRankingNode kNode22(88, 66);
+    CRankingNode kNode22(8, 8);
     kList.Update(kNode22, nRanking, nSearchCount);
-    CRankingNode kNode33(55, 44);
-    kList.Update(kNode33, nRanking, nSearchCount);
+    CRankingNode kNode33(6, 6);
+
 
     printf("List Size,%lld\n", kList.m_lstNode.size());
 
@@ -633,5 +674,4 @@ int TestCRankingList()
 
     return 0;
 }
-
 */
